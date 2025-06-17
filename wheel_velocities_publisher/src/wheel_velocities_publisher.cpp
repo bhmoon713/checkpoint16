@@ -23,13 +23,14 @@ private:
 
     // Define speeds for motions: [FL, FR, RL, RR]
     std::vector<std::vector<float>> motions = {
-      { 1.0,  1.0,  1.0,  1.0},  // forward
-      {-1.0, -1.0, -1.0, -1.0},  // backward
-      {-1.0, 1.0, 1.0, -1.0},    // left
-      { 1.0, -1.0, -1.0, 1.0},   // right
-      { 1.0, -1.0, 1.0, -1.0},   // clockwise
-      {-1.0, 1.0, -1.0, 1.0},    // counter-clockwise
-      { 0.0,  0.0,  0.0,  0.0}   // stop
+    { 3.0,  3.0,  3.0,  3.0},   // forward
+    {-3.0, -3.0, -3.0, -3.0},   // backward
+    {-3.0,  3.0, -3.0,  3.0},   // left (strafe) 
+    { 3.0, -3.0,  3.0, -3.0},   // right (strafe) 
+    { 3.0, -3.0, -3.0,  3.0},   // rotate CW
+    {-3.0,  3.0,  3.0, -3.0},   // rotate CCW
+
+    { 0.0,  0.0,  0.0,  0.0}    // stop
     };
 
     std::vector<std::string> motion_names = {
