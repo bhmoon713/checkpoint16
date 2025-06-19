@@ -11,6 +11,8 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -25,7 +27,7 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(eight_trajectory src/eight_trajectory.cpp)
-ament_target_dependencies(eight_trajectory rclcpp std_msgs geometry_msgs nav_msgs)
+ament_target_dependencies(eight_trajectory rclcpp std_msgs geometry_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs)
 
 # add_executable(absolute_motion src/absolute_motion.cpp)
 # ament_target_dependencies(absolute_motion rclcpp std_msgs nav_msgs tf2_geometry_msgs)
