@@ -29,13 +29,13 @@ endif()
 add_executable(eight_trajectory src/eight_trajectory.cpp)
 ament_target_dependencies(eight_trajectory rclcpp std_msgs geometry_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs)
 
-# add_executable(absolute_motion src/absolute_motion.cpp)
-# ament_target_dependencies(absolute_motion rclcpp std_msgs nav_msgs tf2_geometry_msgs)
-
+add_executable(absolute_motion src/absolute_motion.cpp)
+ament_target_dependencies(absolute_motion rclcpp std_msgs nav_msgs tf2 tf2_ros tf2_geometry_msgs)
 
 
 install(TARGETS
   eight_trajectory
+  absolute_motion
 
 #   absolute_motion 
   DESTINATION lib/${PROJECT_NAME})

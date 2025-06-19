@@ -24,7 +24,7 @@ public:
 
         this->declare_parameter("sleep_sec", 1.0);
         double sleep_sec = this->get_parameter("sleep_sec").as_double();
-        rclcpp::sleep_for(std::chrono::duration<double>(sleep_sec));
+        // rclcpp::sleep_for(std::chrono::duration<double>(sleep_sec));
 
         // Define motions
         std::vector<std::tuple<double, double, double>> motions = {
@@ -47,8 +47,9 @@ public:
             for (int i = 0; i < 300; ++i)
             {
                 auto [wz, vx, vy] = velocity2twist(dphi, dx, dy);
+                RCLCPP_INFO(this->get_logger(), "phi_: %.2f", phi_);
                 std::vector<float> u = twist2wheels(wz, vx, vy);
-
+                RCLCPP_INFO(this->get_logger(), "wz, vx, vy: %.2f , %.2f , %.2f ", wz, vx, vy);
                 std_msgs::msg::Float32MultiArray msg;
                 msg.data = u;
                 pub_->publish(msg);
@@ -76,8 +77,10 @@ private:
             msg->pose.pose.orientation.w);
         tf2::Matrix3x3 m(q);
         double roll, pitch, yaw;
+        RCLCPP_INFO(this->get_logger(), "rotation: %.2f , %.2f , %.2f ", roll, pitch, yaw);
         m.getRPY(roll, pitch, yaw);
         phi_ = yaw;
+
     }
 
     std::tuple<double, double, double> velocity2twist(double dphi, double dx, double dy)
@@ -87,6 +90,7 @@ private:
         double wz = dphi;
         double vx = cos_phi * dx + sin_phi * dy;
         double vy = -sin_phi * dx + cos_phi * dy;
+        RCLCPP_INFO(this->get_logger(), "velocity2twist: %.2f , %.2f , %.2f ", wz, vx, vy);
         return {wz, vx, vy};
     }
 

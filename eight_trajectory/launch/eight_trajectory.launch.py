@@ -11,6 +11,14 @@ def generate_launch_description():
             output='screen'
         ),
 
+        # Node(
+        #     package='eight_trajectory',
+        #     executable='absolute_motion',
+        #     name='absolute_motion',
+        #     output='screen'
+        # ),
+
+
         # Start the kinematic model converter
         Node(
             package='kinematic_model',
