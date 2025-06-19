@@ -16,8 +16,8 @@ public:
 
     // Parameters (adjust these to your robot)
     r_ = 0.05;   // wheel radius in meters
-    l_ = 0.2;    // half length
-    w_ = 0.2;    // half width
+    l_ = 0.085;    // half length
+    w_ = 0.134845;    // half width
   }
 
 private:
