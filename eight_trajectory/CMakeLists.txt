@@ -36,8 +36,6 @@ ament_target_dependencies(absolute_motion rclcpp std_msgs nav_msgs tf2 tf2_ros t
 install(TARGETS
   eight_trajectory
   absolute_motion
-
-#   absolute_motion 
   DESTINATION lib/${PROJECT_NAME})
 
 install(

@@ -4,19 +4,19 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         # Start the wheel velocity publisher
-        Node(
-            package='eight_trajectory',
-            executable='eight_trajectory',
-            name='eight_trajectory',
-            output='screen'
-        ),
-
         # Node(
         #     package='eight_trajectory',
-        #     executable='absolute_motion',
-        #     name='absolute_motion',
+        #     executable='eight_trajectory',
+        #     name='eight_trajectory',
         #     output='screen'
         # ),
+
+        Node(
+            package='eight_trajectory',
+            executable='absolute_motion',
+            name='absolute_motion',
+            output='screen'
+        ),
 
 
         # Start the kinematic model converter
