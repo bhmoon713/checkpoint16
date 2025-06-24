@@ -21,17 +21,16 @@ public:
             "/odometry/filtered", 10, std::bind(&AbsoluteMotionNode::odomCallback, this, _1));
         timer_ = this->create_wall_timer(10ms, std::bind(&AbsoluteMotionNode::motionLoop, this));
 
-        // Set motion sequence (phi, dx, dy)
+        // Set motion sequence: [dphi, dx, dy]
         motions_ = {
-            {0.0, 1, -1},
-            {0.0, 1, 1},
-            {0.0, 1, 1},
+            {0.0,     1, -1},
+            {0.0,     1,  1},
+            {0.0,     1,  1},
             {-1.5708, 1, -1},
             {-1.5708, -1, -1},
-            {0.0, -1, 1},
-            {0.0, -1, 1},
-            {0.0, -1, -1}
-
+            {0.0,    -1,  1},
+            {0.0,    -1,  1},
+            {0.0,    -1, -1}
         };
     }
 
@@ -42,18 +41,16 @@ private:
 
     std::vector<std::tuple<double, double, double>> motions_;
     size_t current_motion_index_ = 0;
-    int iteration_ = 0;
 
+    double phi_ = 0.0;
+    double current_x_ = 0.0;
+    double current_y_ = 0.0;
 
     double start_x_ = 0.0;
     double start_y_ = 0.0;
     double start_phi_ = 0.0;
-    double current_phi_ = 0.0;
     bool start_pose_set_ = false;
 
-    double phi_;  // yaw angle from odometry
-    double current_x_ = 0.0;
-    double current_y_ = 0.0;
     bool is_pausing_ = false;
     int pause_counter_ = 0;
 
@@ -67,10 +64,8 @@ private:
         );
         double roll, pitch;
         tf2::Matrix3x3(q).getRPY(roll, pitch, phi_);
-
         current_x_ = msg->pose.pose.position.x;
         current_y_ = msg->pose.pose.position.y;
-        current_phi_ = phi_;
     }
 
     std::tuple<double, double, double> velocity2twist(double dphi, double dx, double dy)
@@ -113,55 +108,43 @@ private:
 
     void motionLoop()
     {
-
-        // All motions complete and shutdown
         if (current_motion_index_ >= motions_.size())
         {
-            auto msg = std_msgs::msg::Float32MultiArray();
-            msg.data = {0.0, 0.0, 0.0, 0.0};
-            pub_->publish(msg);
-            timer_->cancel();  // stop the loop
-            rclcpp::shutdown();      // shut down ROS 2 node cleanly
+            std_msgs::msg::Float32MultiArray stop_msg;
+            stop_msg.data = {0.0, 0.0, 0.0, 0.0};
+            pub_->publish(stop_msg);
+            timer_->cancel();
+            rclcpp::shutdown();
             return;
         }
 
-        // Handle 2-second pause (200 x 0.01s)
         if (is_pausing_)
         {
-            std_msgs::msg::Float32MultiArray msg;
-            msg.data = {0.0, 0.0, 0.0, 0.0};
-            pub_->publish(msg);
+            std_msgs::msg::Float32MultiArray stop_msg;
+            stop_msg.data = {0.0, 0.0, 0.0, 0.0};
+            pub_->publish(stop_msg);
 
             pause_counter_++;
-            if (pause_counter_ >= 200)
+            if (pause_counter_ >= 200) // ~2s pause
             {
                 is_pausing_ = false;
                 pause_counter_ = 0;
                 current_motion_index_++;
+                start_pose_set_ = false;
             }
             return;
         }
 
-        // Run motion step
-        if (iteration_ >= 30000)
+        if (!start_pose_set_)
         {
-            iteration_ = 0;
-            is_pausing_ = true;  // start 2-second stop after this motion
-            return;
-        }
-
-        // Save start pose for this motion if not already set
-        if (!start_pose_set_) {
             start_x_ = current_x_;
             start_y_ = current_y_;
             start_phi_ = phi_;
             start_pose_set_ = true;
         }
+
         double dphi, dx, dy;
         std::tie(dphi, dx, dy) = motions_[current_motion_index_];
-        double wz, vx, vy;
-        std::tie(wz, vx, vy) = velocity2twist(dphi*0.25, dx*0.25, dy*0.25);  //reduce speed 1/4
-
         double target_x = start_x_ + dx;
         double target_y = start_y_ + dy;
         double target_phi = start_phi_ + dphi;
@@ -169,75 +152,33 @@ private:
         double dx_err = target_x - current_x_;
         double dy_err = target_y - current_y_;
         double dist_error = std::sqrt(dx_err * dx_err + dy_err * dy_err);
-        double angle_error = std::fabs(target_phi - phi_);
 
-        // Normalize angle error to [-pi, pi]
+        double angle_error = target_phi - phi_;
         while (angle_error > M_PI) angle_error -= 2 * M_PI;
         while (angle_error < -M_PI) angle_error += 2 * M_PI;
         angle_error = std::fabs(angle_error);
 
-        // ✅ NEW STOP CONDITION BASED ON dx and dy errors
-        // === Precise stop condition ===
-        if (std::fabs(dx_err) < 0.02 && std::fabs(dy_err) < 0.02) {
-            RCLCPP_INFO(this->get_logger(),
-                "Reached target (x,y) for motion %ld — pausing", current_motion_index_);
+        if (dist_error <= 0.02 && angle_error <= 0.00052)
+        {
+            is_pausing_ = true;
+            start_pose_set_ = false;
 
             std_msgs::msg::Float32MultiArray stop_msg;
             stop_msg.data = {0.0, 0.0, 0.0, 0.0};
             pub_->publish(stop_msg);
-
-            is_pausing_ = true;
-            pause_counter_ = 0;
-            start_pose_set_ = false;
             return;
         }
 
-        // === Fine error recovery zone (within 10cm) ===
-        if (std::fabs(dx_err) < 0.1 || std::fabs(dy_err) < 0.1) {
-            double fine_dx = 0.01 * (dx_err / (std::fabs(dx_err) + 1e-6));
-            double fine_dy = 0.01 * (dy_err / (std::fabs(dy_err) + 1e-6));
-
-            double fine_dphi = 0.0;  // default no angle correction
-
-            // Only activate angle correction if angular error is also in fine-tuning range
-            if (std::fabs(angle_error) < 0.05) {
-                double sign_phi = (target_phi - phi_) >= 0 ? 1.0 : -1.0;
-                fine_dphi = 0.01 * sign_phi;
-                RCLCPP_INFO(this->get_logger(),
-                    "Fine recovery — error_x: %.4f, error_x: %.4f, error_angle: %.4f",dx_err, dy_err, angle_error);
-            } else {
-                RCLCPP_INFO(this->get_logger(),
-                    "Fine XY recovery only — dx: %.4f, dy: %.4f", fine_dx, fine_dy);
-            }
-
-            double wz, vx, vy;
-            std::tie(wz, vx, vy) = velocity2twist(fine_dphi, fine_dx, fine_dy);
-            auto wheel_speeds = twist2wheels(wz, vx, vy);
-
-            std_msgs::msg::Float32MultiArray msg;
-            msg.data = wheel_speeds;
-            pub_->publish(msg);
-            return;
-        }
-
-
-                
-        auto wheel_speeds = twist2wheels(wz, vx, vy);
-
+        double wz, vx, vy;
+        std::tie(wz, vx, vy) = velocity2twist(dphi, dx, dy);
+        auto wheel_speeds = twist2wheels(wz * 0.8, vx, vy);
 
         std_msgs::msg::Float32MultiArray msg;
         msg.data = wheel_speeds;
         pub_->publish(msg);
 
-        // RCLCPP_INFO(this->get_logger(), "Step %ld | phi: %.3f", current_motion_index_, phi_);
-
-        iteration_++;
-
-        // RCLCPP_INFO(this->get_logger(), "Motion %ld | dist err: %.4f | angle err: %.6f",
-        //     current_motion_index_, dist_error, angle_error);
-        
-        // RCLCPP_INFO(this->get_logger(), "Motion %ld | current_x_: %.4f | current_y_: %.6f | current_y_: %d" ,
-        //     current_motion_index_, current_x_, current_y_, iteration_);
+        RCLCPP_INFO(this->get_logger(), "Motion %ld | dist err: %.4f | angle err: %.6f",
+                    current_motion_index_, dist_error, angle_error);
     }
 };
 
