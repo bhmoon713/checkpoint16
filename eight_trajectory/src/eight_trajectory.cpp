@@ -133,20 +133,12 @@ private:
             pub_->publish(msg);
 
             pause_counter_++;
-            if (pause_counter_ >= 200)
+            if (pause_counter_ >= 100)
             {
                 is_pausing_ = false;
                 pause_counter_ = 0;
                 current_motion_index_++;
             }
-            return;
-        }
-
-        // Run motion step
-        if (iteration_ >= 30000)
-        {
-            iteration_ = 0;
-            is_pausing_ = true;  // start 2-second stop after this motion
             return;
         }
 
@@ -168,7 +160,6 @@ private:
 
         double dx_err = target_x - current_x_;
         double dy_err = target_y - current_y_;
-        double dist_error = std::sqrt(dx_err * dx_err + dy_err * dy_err);
         double angle_error = std::fabs(target_phi - phi_);
 
         // Normalize angle error to [-pi, pi]
@@ -194,8 +185,8 @@ private:
 
         // === Fine error recovery zone (within 10cm) ===
         if (std::fabs(dx_err) < 0.1 || std::fabs(dy_err) < 0.1) {
-            double fine_dx = 0.01 * (dx_err / (std::fabs(dx_err) + 1e-6));
-            double fine_dy = 0.01 * (dy_err / (std::fabs(dy_err) + 1e-6));
+            double fine_dx = 0.025 * (dx_err / (std::fabs(dx_err) + 1e-6));
+            double fine_dy = 0.025 * (dy_err / (std::fabs(dy_err) + 1e-6));
 
             double fine_dphi = 0.0;  // default no angle correction
 
@@ -232,12 +223,9 @@ private:
         // RCLCPP_INFO(this->get_logger(), "Step %ld | phi: %.3f", current_motion_index_, phi_);
 
         iteration_++;
-
-        // RCLCPP_INFO(this->get_logger(), "Motion %ld | dist err: %.4f | angle err: %.6f",
-        //     current_motion_index_, dist_error, angle_error);
         
-        // RCLCPP_INFO(this->get_logger(), "Motion %ld | current_x_: %.4f | current_y_: %.6f | current_y_: %d" ,
-        //     current_motion_index_, current_x_, current_y_, iteration_);
+        RCLCPP_INFO(this->get_logger(), "Motion %ld | x_: %.4f | y_: %.6f",
+            current_motion_index_, current_x_,current_y_);
     }
 };
 
